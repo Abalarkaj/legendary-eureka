@@ -7,7 +7,7 @@ on:
 
 jobs:
   setup_rdp:
-    runs-on: windows-latest # Use a self-hosted Windows runner (make sure it's registered)
+    runs-on: windows-latest  # Use a self-hosted Windows runner (make sure it's registered)
 
     steps:
       - name: Checkout repository
@@ -44,6 +44,18 @@ jobs:
         run: |
           # Configure firewall for RDP
           New-NetFirewallRule -Name "RDP" -DisplayName "Remote Desktop Protocol" -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 3389
+        shell: pwsh
+
+      - name: Enable Audio Service
+        run: |
+          # Enable Windows Audio service
+          $audioService = Get-Service -Name "Audiosrv"
+          if ($audioService.Status -ne 'Running') {
+              Start-Service -Name "Audiosrv"
+              Write-Host "Audio service started."
+          } else {
+              Write-Host "Audio service is already running."
+          }
         shell: pwsh
 
       - name: Play Video Sound After ZeroTier Setup
