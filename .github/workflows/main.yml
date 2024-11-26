@@ -15,14 +15,14 @@ jobs:
 
       - name: Install ZeroTier
         run: |
-          # Mengunduh dan menginstal ZeroTier
+          # Install ZeroTier
           Invoke-WebRequest -Uri "https://download.zerotier.com/dist/ZeroTier%20One.msi" -OutFile "$env:TEMP\ZeroTierOne.msi"
           Start-Process msiexec.exe -ArgumentList '/i', "$env:TEMP\ZeroTierOne.msi", '/quiet', '/norestart' -NoNewWindow -Wait
         shell: pwsh
 
       - name: Verify ZeroTier Installation
         run: |
-          # Memeriksa apakah ZeroTier terinstal dan mendapatkan path executable
+          # Verify ZeroTier installation
           $path = "C:\Program Files (x86)\ZeroTier\One"
           if (Test-Path $path) {
               Write-Host "ZeroTier is installed at: $path"
@@ -36,26 +36,40 @@ jobs:
         env:
           NETWORK_ID: ${{ secrets.ZEROTIER_NETWORK_ID }}
         run: |
-          # Bergabung dengan jaringan ZeroTier
+          # Join the ZeroTier network
           & "C:\Program Files (x86)\ZeroTier\One\zerotier-cli" join $env:NETWORK_ID
         shell: pwsh
 
       - name: Configure Firewall to Allow RDP
         run: |
-          # Mengizinkan port 3389 untuk RDP di firewall
+          # Configure firewall for RDP
           New-NetFirewallRule -Name "RDP" -DisplayName "Remote Desktop Protocol" -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 3389
+        shell: pwsh
+
+      - name: Play Video Sound After ZeroTier Setup
+        run: |
+          # Path to the video or sound file (replace with your file path)
+          $videoPath = "C:\path\to\your\video.mp4"  # <-- Update with your video path
+
+          # Ensure the file exists and then play it
+          if (Test-Path $videoPath) {
+              Write-Host "Playing video with sound..."
+              Start-Process "wmplayer.exe" -ArgumentList $videoPath
+          } else {
+              Write-Host "Video file not found!"
+          }
         shell: pwsh
 
       - name: Set RDP User Password
         env:
-          RDP_USERNAME: ${{ secrets.RDP_USERNAME }}  # Username untuk RDP
-          RDP_PASSWORD: ${{ secrets.RDP_PASSWORD }}  # Password untuk RDP
+          RDP_USERNAME: ${{ secrets.RDP_USERNAME }}  # Username for RDP
+          RDP_PASSWORD: ${{ secrets.RDP_PASSWORD }}  # Password for RDP
         run: |
           $username = $env:RDP_USERNAME
           $password = $env:RDP_PASSWORD
           $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
 
-          # Membuat hashtable untuk parameter
+          # Create user for RDP
           $params = @{
               Name                = $username
               Password            = $securePassword
@@ -64,10 +78,8 @@ jobs:
               PasswordNeverExpires = $true
           }
 
-          # Membuat pengguna baru jika belum ada
           if (-not (Get-LocalUser -Name $username -ErrorAction SilentlyContinue)) {
               New-LocalUser @params
-              # Menambahkan pengguna baru ke grup Remote Desktop Users
               Add-LocalGroupMember -Group "Remote Desktop Users" -Member $username
           } else {
               Write-Host "User $username already exists. Setting password."
@@ -77,11 +89,9 @@ jobs:
 
       - name: Get Hostname and ZeroTier IP Address
         run: |
-          # Mendapatkan hostname
+          # Get hostname and ZeroTier IP address
           $hostname = hostname
-          # Mendapatkan IP address ZeroTier
           $ztIPAddress = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -eq "ZeroTier One" } | Select-Object -ExpandProperty IPAddress
-          
           Write-Host "Hostname: $hostname"
           Write-Host "ZeroTier IP Address: $ztIPAddress"
         shell: pwsh
@@ -95,20 +105,4 @@ jobs:
         run: |
           Write-Host "Pending for 6 hours to keep session active..."
           Start-Sleep -Seconds 21600
-        shell: pwsh
-
-      # Step to Play Video Sound
-      - name: Play Video Sound
-        if: always()  # Ensure the sound plays regardless of success or failure
-        run: |
-          # Path to the video file you want to play (e.g., .mp4, .avi)
-          $videoPath = "C:\path\to\your\video.mp4"  # <-- Replace with the full path to your video file
-
-          # Check if the video file exists and play it
-          if (Test-Path $videoPath) {
-              # Use Windows Media Player or another player installed on the machine
-              Start-Process "wmplayer.exe" -ArgumentList $videoPath
-          } else {
-              Write-Host "Video file not found!"
-          }
         shell: pwsh
